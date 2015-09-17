@@ -8,38 +8,50 @@ from collections import Counter
 BROWN_CORPUS_DIR = 'brown'
 REUTER_CORPUS_DIR_TEST = 'test_tok'
 REUTER_CORPUS_DIR_TRAIN = 'traning_tok'
-DICTIONARY_DIR = 'dictionary'
+TOKEN_DIR = 'tokenizer'
 TEST_CORPUS_DIR = 'test_copus'
 TEST_REUTER_DIR = 'test_reuter'
 TEST_DIR = 'test'
 TRAIN_CORPUS_DIR = 'train_copus'
 TRAIN_REUTER_DIR = 'train_reuter'
+NUM_OF_TRAIN_FILES = 490
+DICTIONARY_DIR = 'dictionary'
+
+
 
 WORD = 'word'
 WORD_TAG = 'word_tag'
 UNIGRAM = 'unigram'
 BIGRAM = 'bigram'
 TRIGRAM = 'trigram'
+UNIGRAM_PROB = 'unigram_prob'
+BIGRAM_PROB = 'bigram_prob'
+TRIGRAM_PROB = 'trigram_prob'
 POSSIBLE_TAGS = 'possible_tags'
 FILE_TEST_TAG_ORIGIN = 'test_tag_origin'
 FILE_TEST = 'test'
 
-def save_trained_data(data, filename):
-    file_path = DICTIONARY_DIR + '/' + filename
+def save_trained_data(data, filename, brown_corpus):
+    if brown_corpus:
+        dir_path = DICTIONARY_DIR + "/" + TRAIN_CORPUS_DIR
+    else:
+        dir_path = DICTIONARY_DIR + "/" + TRAIN_REUTER_DIR
+
+    if not os.path.isdir(dir_path):
+        os.makedirs(dir_path)
+
+    file_path = dir_path + '/' + filename
     file = open(file_path, 'w')
     file.write(str(data))
     file.close()
 
-
-def save_test_data(data, filename):
-    file_path = TEST_DIR + '/' + filename
-    file = open(file_path, 'w')
-    file.write(str(data))
-    file.close()
-
-
-def get_trained_data(filename):
-    file_path = DICTIONARY_DIR + '/' + filename
+def get_trained_data(filename, brown_corpus):
+    if brown_corpus:
+        dir_path = DICTIONARY_DIR + "/" + TRAIN_CORPUS_DIR
+    else:
+        dir_path = DICTIONARY_DIR + "/" + TRAIN_REUTER_DIR
+    
+    file_path = dir_path + '/' + filename
     file = open(file_path, 'r')
     file_content = file.read()
     file.close()
@@ -53,74 +65,107 @@ def print_hash(hash):
 #Unigram generation
 # Input:preprocessed file name
 # Output: unigram probability, unigram frequency dictionary
-def unigram(filename):
-    fproc = open(filename, 'r').read()
-    token = fproc.split()
-    unigram_hash = dict(Counter(token).items())
-    unigram_prob= dict(unigram_hash)
-    unigram_count = sum(unigram_hash.values())
-    for value in unigram_hash.keys():
-        temp = float(unigram_hash.get(value))/float(unigram_count)
-        unigram_prob[value] = temp
+def unigram(filename, isBrown):
     
-#    unigram_prob['<unk>'] = len(unigram_prob)
+    if isBrown:
+        dir_path = DICTIONARY_DIR + "/" + TRAIN_CORPUS_DIR
+    else:
+        dir_path = DICTIONARY_DIR + "/" + TRAIN_REUTER_DIR
+    
+    if os.path.exists(dir_path + "/" + UNIGRAM):
+        unigram_prob = get_trained_data(UNIGRAM_PROB, isBrown)
+        unigram_hash = get_trained_data(UNIGRAM, isBrown)
+    else:
+        fproc = open(filename, 'r').read()
+        token = fproc.split()
+        unigram_hash = dict(Counter(token).items())
+        unigram_prob= dict(unigram_hash)
+        unigram_count = sum(unigram_hash.values())
+        for value in unigram_hash.keys():
+            temp = float(unigram_hash.get(value))/float(unigram_count)
+            unigram_prob[value] = temp
+        save_trained_data(unigram_prob, UNIGRAM_PROB, isBrown)
+        save_trained_data(unigram_hash, UNIGRAM, isBrown)
+    
     return(unigram_prob,unigram_hash)
 
 #Bigram generation
 # Input: Preprocessed file name, unigram frequency
 # Output: bigram probability, bigram frequency dictionary
-def bigram(filename,unigram_hash):
+def bigram(filename,unigram_hash, isBrown):
     
-    newlist = [] #to append the generated bigrams
-    fproc = open(filename, 'r').read()
-    token = fproc.split()
-    i=0
-    bigramlist = token
+    if isBrown:
+        dir_path = DICTIONARY_DIR + "/" + TRAIN_CORPUS_DIR
+    else:
+        dir_path = DICTIONARY_DIR + "/" + TRAIN_REUTER_DIR
+    
+    if os.path.exists(dir_path + "/" + BIGRAM):
+        bigram_prob = get_trained_data(BIGRAM_PROB, isBrown)
+        bigram_hash = get_trained_data(BIGRAM, isBrown)
+    else:
+        newlist = [] #to append the generated bigrams
+        fproc = open(filename, 'r').read()
+        token = fproc.split()
+        i=0
+        bigramlist = token
             
-    while i<len(bigramlist):
-        if i+1<(len(bigramlist) -1):
-            newlist.append(bigramlist[i]+" " + bigramlist[i+1])
-        i += 1
+        while i<len(bigramlist):
+            if i+1<(len(bigramlist) -1):
+                newlist.append(bigramlist[i]+" " + bigramlist[i+1])
+            i += 1
         
-    bigram_hash = dict(Counter(newlist).items())
-    bigram_prob = dict(bigram_hash)
+        bigram_hash = dict(Counter(newlist).items())
+        bigram_prob = dict(bigram_hash)
             
-    for w in newlist[:]:
-        first=w.split(" ")
-        bigramfrequency= bigram_hash.get(w)
-        unifrequency=unigram_hash.get(first[0])
-        temp= float(bigramfrequency)/float(unifrequency)
-        bigram_prob[w]= temp
-                                    
+        for w in newlist[:]:
+            first=w.split(" ")
+            bigramfrequency= bigram_hash.get(w)
+            unifrequency=unigram_hash.get(first[0])
+            temp= float(bigramfrequency)/float(unifrequency)
+            bigram_prob[w]= temp
+
+        save_trained_data(bigram_prob, BIGRAM_PROB, isBrown)
+        save_trained_data(bigram_hash, BIGRAM, isBrown)
+
     return(bigram_prob,bigram_hash)
 
 # Trigram generation
 # Input: Preprocessed file name, bigram frequency
 # Output: trigram probability, trigram frequency dictionary
-def trigram(filename, bigram_hash):
+def trigram(filename, bigram_hash, isBrown):
+    if isBrown:
+        dir_path = DICTIONARY_DIR + "/" + TRAIN_CORPUS_DIR
+    else:
+        dir_path = DICTIONARY_DIR + "/" + TRAIN_REUTER_DIR
     
-    newlist1 = [] #to append the generated trigrams
-    fproc = open(filename, 'r').read()
-    token = fproc.split()
-    j=0
-    trigramlist = token
+    if os.path.exists(dir_path + "/" + TRIGRAM):
+        trigram_prob = get_trained_data(TRIGRAM_PROB, isBrown)
+        trigram_hash = get_trained_data(TRIGRAM, isBrown)
+    else:
+        newlist1 = [] #to append the generated trigrams
+        fproc = open(filename, 'r').read()
+        token = fproc.split()
+        j=0
+        trigramlist = token
             
-    while j<len(trigramlist):
-        if (j+2)<(len(trigramlist) -1):
-            newlist1.append(trigramlist[j]+" " + trigramlist[j+1]+" "+trigramlist[j+2])
-        j += 1
+        while j<len(trigramlist):
+            if (j+2)<(len(trigramlist) -1):
+                newlist1.append(trigramlist[j]+" " + trigramlist[j+1]+" "+trigramlist[j+2])
+            j += 1
         
-    trigram_hash = dict(Counter(newlist1).items())
-    trigram_prob = dict(trigram_hash)
+        trigram_hash = dict(Counter(newlist1).items())
+        trigram_prob = dict(trigram_hash)
             
-    for w in newlist1[:]:
-        first1=w.split(" ")
-        trigramfrequency1= trigram_hash.get(w)
-        seq=[first1[0], first1[1]]
-        bigram_split=" ".join(seq)
-        bigramfrequency1=bigram_hash.get(bigram_split)
-        temp= float(trigramfrequency1)/float(bigramfrequency1)
-        trigram_prob[w]= temp
+        for w in newlist1[:]:
+            first1=w.split(" ")
+            trigramfrequency1= trigram_hash.get(w)
+            seq=[first1[0], first1[1]]
+            bigram_split=" ".join(seq)
+            bigramfrequency1=bigram_hash.get(bigram_split)
+            temp= float(trigramfrequency1)/float(bigramfrequency1)
+            trigram_prob[w]= temp
+        save_trained_data(trigram_prob, TRIGRAM_PROB, isBrown)
+        save_trained_data(trigram_hash, TRIGRAM, isBrown)
     
     return(trigram_prob,trigram_hash)
 
@@ -166,6 +211,19 @@ def good_turing_smoothing(fd):
 # and the preprocessed file name
 #Output: Perplexity value
 
+def get_p_sentence(sentence):
+    sentence = sentence.split()
+    n = len(sentence)
+    p_sentence = 1.0
+    for k in range(1, n + 1):
+        word = get_word(sentence, k - 1)
+        last_word = get_word(sentence, k - 2)
+        penult_word = get_word(sentence, k - 3)
+        
+        p_sentence *= get_q_trigram(penult_word, last_word, word)
+    
+    return (p_sentence, n)
+
 def perplexity(prob_hash, n_gram,filename):
     
     fproc = open(filename, 'r').read()
@@ -198,25 +256,18 @@ def perplexity(prob_hash, n_gram,filename):
                     p+= math.log(prob_hash["<UNK>"],2)
                                                                                                 
     elif n_gram == 3:
-       
         while j<M:
             if (j+2)<(len(token) -1):
                 print(">>" + token[j]+" " + token[j+1]+" "+token[j+2])
                 newlist_per.append(token[j]+" " + token[j+1]+" "+token[j+2])
             j+= 1
-            
-            print("jj " + str(j))
                                                                                                                     
             for word in newlist_per:
                 if word in prob_hash:
-                    print("word in prob_hash " + word)
                     p+= math.log(prob_hash[word],2)
-                    print("p " + str(p))
-                else:
-                    p+= math.log(prob_hash["<UNK>"],2)
-                    print("word in prob_hash " + str(prob_hash["<UNK>"]))
-                    print("p unk " + str(p))
-                                                                                                                                        
+#                else:
+#                    p+= math.log(prob_hash["<UNK>"],2)
+
     l= float(p)/float(M)
     perplexity = 2 ** (-1 *l)
     return (perplexity)
@@ -282,7 +333,7 @@ def random_sentence(prob_hash, ngram):
 def main():
     prepareData()
     oper = -1
-    trainFile = DICTIONARY_DIR + "/" + TRAIN_REUTER_DIR
+    trainFile = TOKEN_DIR + "/" + TRAIN_REUTER_DIR
     while int(oper) != 0:
         print('')
         print('Choose one of the following: ')
@@ -297,24 +348,24 @@ def main():
         
         if oper > 0:
             if oper == 1: #Unigram Model
-                unigram_prob,unigram_hash = unigram(trainFile)
+                unigram_prob,unigram_hash = unigram(trainFile, False)
                 print("Unigram probability"+"\n")
                 print_hash(unigram_prob)
             elif oper == 2: #Bigram Model
-                unigram_prob,unigram_hash = unigram(trainFile)
-                bigram_prob,bigram_hash = bigram(trainFile,unigram_hash)
+                unigram_prob,unigram_hash = unigram(trainFile, False)
+                bigram_prob,bigram_hash = bigram(trainFile,unigram_hash, False)
                 print("Bigram probability"+"\n")
-                print_hash(bigram_prob)
+                print_hash(bigram_hash)
             elif oper == 3: #Trigram Model
-                unigram_prob,unigram_hash = unigram(trainFile)
-                bigram_prob,bigram_hash = bigram(trainFile,unigram_hash)
-                trigram_prob,trigram_hash = trigram(trainFile,bigram_hash)
+                unigram_prob,unigram_hash = unigram(trainFile, False)
+                bigram_prob,bigram_hash = bigram(trainFile,unigram_hash, False)
+                trigram_prob,trigram_hash = trigram(trainFile,bigram_hash, False)
                 print("Trigram probability"+"\n")
                 print_hash(trigram_prob)
             elif oper == 4: #Random Sentence Generation
-                unigram_prob,unigram_hash = unigram(trainFile)
-                bigram_prob,bigram_hash = bigram(trainFile,unigram_hash)
-                trigram_prob,trigram_hash = trigram(trainFile,bigram_hash)
+                unigram_prob,unigram_hash = unigram(trainFile, False)
+                bigram_prob,bigram_hash = bigram(trainFile,unigram_hash, False)
+                trigram_prob,trigram_hash = trigram(trainFile,bigram_hash, False)
                 print("Random sentences using bigram model:"+"\n")
                 for i in range(5):
                     random_sentence(bigram_prob,2)
@@ -322,24 +373,24 @@ def main():
                 for i in range(5):
                     random_sentence(trigram_prob,3)
             elif oper == 5: #Perplexity
-                test_file = DICTIONARY_DIR + "/" + TEST_REUTER_DIR
-                unigram_prob,unigram_hash = unigram(trainFile)
-                bigram_prob,bigram_hash = bigram(trainFile,unigram_hash)
-                trigram_prob,trigram_hash = trigram(trainFile,bigram_hash)
+                test_file = TOKEN_DIR + "/" + TEST_REUTER_DIR
+                unigram_prob,unigram_hash = unigram(trainFile, False)
+                bigram_prob,bigram_hash = bigram(trainFile,unigram_hash, False)
+                trigram_prob,trigram_hash = trigram(trainFile,bigram_hash, False)
 
 #                gt_prob = dict(unigram_prob)
 #                gt_bi_prob = dict(bigram_prob)
 #                                
-                gt_prob = good_turing_smoothing(unigram_hash)
+#                gt_prob = good_turing_smoothing(unigram_hash)
 #                print("Good Turing smoothing - unigram")
 ##                print_hash(gt_prob)
-                gt_tri_prob = good_turing_smoothing(trigram_hash)
+#                gt_tri_prob = good_turing_smoothing(trigram_hash)
 #                for key in gt_bi_prob.keys():
 #                    bigram_prob[key] = gt_bi_prob[key]
 #                print("Good Turing smoothing - bigram"+"\n")
 #                print_hash(gt_bi_prob)
 
-                unigram_perplexity = perplexity(gt_tri_prob,3,test_file)
+                unigram_perplexity = perplexity(trigram_prob,3,test_file)
 #                bigram_perplexity = perplexity(gt_bi_prob,2,test_file)
 #                trigram_perplexity = perplexity(trigram_prob,3,test_file)
                 print("Unigram perplexity is "+ str(unigram_perplexity))
@@ -348,57 +399,82 @@ def main():
             else:
                 exit()
 
+def prepareDataBrown():
+    print("Prepare Brown:"+"\n")
+    
+    list_of_filename = os.listdir(BROWN_CORPUS_DIR)
+    
+    content = ''
+    for file in list_of_filename[:NUM_OF_TRAIN_FILES]:
+        if len(file) == 4:
+            with open(BROWN_CORPUS_DIR + '/' + file, 'r') as file_content:
+                lines = file_content.readlines()
+                for line in lines:
+                    if line and line.strip():
+                        for word_tag in line.split():
+                            current_word = word_tag.split('/', 1)[0]
+                            content += current_word + ' '
+                        content += '\n'
+            file_content.close()
+
+    file_path = TOKEN_DIR + "/" + TRAIN_CORPUS_DIR
+    with open(file_path, "w+") as file:
+        file.write(str(content))
+    file.close()
+    
+    content = ''
+    for file in list_of_filename[NUM_OF_TRAIN_FILES:]:
+        if len(file) == 4:
+            with open(BROWN_CORPUS_DIR + '/' + file, 'r') as file_content:
+                lines = file_content.readlines()
+                for line in lines:
+                    if line and line.strip():
+                        for word_tag in line.split():
+                            current_word = word_tag.split('/', 1)[0]
+                            content += current_word + ' '
+                        content += '\n'
+            file_content.close()
+
+    file_path = TOKEN_DIR + '/' + TEST_CORPUS_DIR
+    with open(file_path, "w+") as file:
+        file.write(str(content))
+    file.close()
+
+def prepareDataReuter():
+    list_of_reuter_test = os.listdir(REUTER_CORPUS_DIR_TEST)
+    rTest = open(TOKEN_DIR + "/" + TEST_REUTER_DIR,"w+")
+    for filename in list_of_reuter_test:
+        if re.match('[0-9]', filename) is not None:
+            with open(REUTER_CORPUS_DIR_TEST + "/" + filename, encoding = "ISO-8859-1") as reuter_file_test:
+                lines = reuter_file_test.readlines()
+                for line in lines:
+                    rTest.write(line)
+    rTest.close()
+
+    list_of_reuter_train = os.listdir(REUTER_CORPUS_DIR_TRAIN)
+    rTrain = open(TOKEN_DIR + "/" + TRAIN_REUTER_DIR,"w+")
+    for filename in list_of_reuter_train:
+        if re.match('[0-9]', filename) is not None:
+            with open(REUTER_CORPUS_DIR_TRAIN + "/" + filename, encoding = "ISO-8859-1") as reuter_file_train:
+                lines = reuter_file_train.readlines()
+                for line in lines:
+                    rTrain.write(line)
+    rTrain.close()
 
 def prepareData():
     print("Prepare data:"+"\n")
     start_time = time.time()
-    if os.path.isdir(DICTIONARY_DIR):
-        first = True
+    if os.path.isdir(TOKEN_DIR):
+        #Read data
+        content = ''
     else:
-        os.makedirs(DICTIONARY_DIR)
+        os.makedirs(TOKEN_DIR)
         #Brown Corpus
-        list_of_brown = os.listdir(BROWN_CORPUS_DIR)
-        count_file = 0
-        for filename in list_of_brown:
-            if re.match('c[a-r]\d{2}', filename) is not None:
-                count_file += 1
-                with open(BROWN_CORPUS_DIR + "/" + filename) as corpus_file:
-                    lines = corpus_file.readlines()
-                    for line in lines:
-                        if line.strip():
-                            for word_tag in line.split():
-                                word, tag = word_tag.rsplit('/', 1)
-#                                if count_file <= 490:
-#                                else:
-                    corpus_file.close()
+        prepareDataBrown()
+        
         #Reuter Corpus
-        list_of_reuter_test = os.listdir(REUTER_CORPUS_DIR_TEST)
-        rTest = open(DICTIONARY_DIR + "/" + TEST_REUTER_DIR,"w+")
-        for filename in list_of_reuter_test:
-            if re.match('[0-9]', filename) is not None:
-                with open(REUTER_CORPUS_DIR_TEST + "/" + filename, encoding = "ISO-8859-1") as reuter_file_test:
-                    lines = reuter_file_test.readlines()
-                    for line in lines:
-                        proc_line = "<s>" + line + "</s>"
-                        newline = re.compile(r'(\n)', re.UNICODE)
-                        proc_line = newline.sub(' ',proc_line)
-                        rTest.write(proc_line)
-                first = True
-        rTest.close()
-
-        list_of_reuter_train = os.listdir(REUTER_CORPUS_DIR_TRAIN)
-        rTrain = open(DICTIONARY_DIR + "/" + TRAIN_REUTER_DIR,"w+")
-        for filename in list_of_reuter_train:
-            if re.match('[0-9]', filename) is not None:
-                with open(REUTER_CORPUS_DIR_TRAIN + "/" + filename, encoding = "ISO-8859-1") as reuter_file_train:
-                    lines = reuter_file_train.readlines()
-                    for line in lines:
-                        proc_line = "<s>" + line + "</s>"
-                        newline = re.compile(r'(\n)', re.UNICODE)
-                        proc_line = newline.sub(' ',proc_line)
-                        rTrain.write(proc_line)
-                first = True
-        rTrain.close()
+        prepareDataReuter()
+        
     end_time = time.time()
     print('(Time to initialize data: %s)' % (end_time - start_time))
 
